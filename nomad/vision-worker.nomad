@@ -26,7 +26,11 @@ job "vision-worker" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.vision.rule=Host(`vision.home.arpa`)",
-        "traefik.http.services.vision.loadbalancer.server.port=9099"
+        "traefik.http.routers.vision.entrypoints=web",
+        "traefik.http.routers.vision-tls.rule=Host(`vision.home.arpa`)",
+        "traefik.http.routers.vision-tls.entrypoints=websecure",
+        "traefik.http.routers.vision-tls.tls=true",
+        "traefik.http.services.vision-worker.loadbalancer.server.port=9099"
       ]
 
       check {
@@ -39,16 +43,24 @@ job "vision-worker" {
 
     # Task 1: Urban Vision Appliance (Server, Analytics, QA & Calibration Studio)
     task "vision-appliance" {
-      driver = "raw_exec"
+      driver = "docker"
 
       config {
-        command = "/usr/bin/python3"
-        args    = ["-u", "-m", "src.api.server", "9099"]
+        image        = "homelab/urban-traffic-vision:local"
+        force_pull   = false
+        network_mode = "host"
+        args         = ["9099"]
+        volumes = [
+          "/home/tlima/Enterprise_Hub/data/media/merged/vision:/data/media/merged/vision",
+          "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/config/zones.json:/app/config/zones.json",
+          "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/config/settings.yaml:/app/config/settings.yaml:ro",
+          "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/src:/app/src:ro"
+        ]
       }
 
       env {
-        PYTHONPATH       = "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision"
         PYTHONUNBUFFERED = "1"
+        VISION_VAL_DIR   = "/data/media/merged/vision/validation"
       }
 
       resources {
@@ -62,7 +74,7 @@ job "vision-worker" {
       driver = "docker"
 
       config {
-        image        = "ultralytics/ultralytics:latest-cpu"
+        image        = "ultralytics/ultralytics:latest-cpu@sha256:28faf8dac89befba9fa208d8c4c584f755682fbce1f29c4d9284a426df0c9966"
         network_mode = "host"
         volumes = [
           "/home/tlima/Enterprise_Hub/data/media/merged/vision:/vision",

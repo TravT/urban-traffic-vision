@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zstd \
     curl \
     ca-certificates \
+    adb \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

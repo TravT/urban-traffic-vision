@@ -42,7 +42,7 @@ from src.tracking.dwell_time_tracker import UnifiedDwellCoordinator
 SETTINGS_PATH = PROJECT_ROOT / "config" / "settings.yaml"
 ZONES_PATH = PROJECT_ROOT / "config" / "zones.json"
 WEB_DIR = PROJECT_ROOT / "src" / "web"
-VAL_DIR = Path("/home/tlima/Enterprise_Hub/data/media/merged/vision/validation")
+VAL_DIR = Path(os.environ.get("VISION_VAL_DIR", "/data/media/merged/vision/validation" if Path("/data/media/merged/vision/validation").exists() else "/home/tlima/Enterprise_Hub/data/media/merged/vision/validation"))
 
 
 class VisionAPIHandler(BaseHTTPRequestHandler):
