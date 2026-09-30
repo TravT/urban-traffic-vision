@@ -54,13 +54,15 @@ job "vision-worker" {
           "/home/tlima/Enterprise_Hub/data/media/merged/vision:/data/media/merged/vision",
           "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/config/zones.json:/app/config/zones.json",
           "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/config/settings.yaml:/app/config/settings.yaml:ro",
-          "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/src:/app/src:ro"
+          "/home/tlima/Enterprise_Hub/dev/urban-traffic-vision/src:/app/src:ro",
+          "/home/tlima/Enterprise_Hub/data/ws-scrcpy/adb_keys:/root/.android:ro"
         ]
       }
 
       env {
         PYTHONUNBUFFERED = "1"
         VISION_VAL_DIR   = "/data/media/merged/vision/validation"
+        ADB_PORT         = "5039"
       }
 
       resources {

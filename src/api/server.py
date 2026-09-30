@@ -404,7 +404,10 @@ class VisionAPIHandler(BaseHTTPRequestHandler):
         pass
 
 
-def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555", interval_sec: float = 4.0):
+def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555", interval_sec: float = 1.0):
+    adb_port = os.environ.get("ADB_PORT", "5039")
+    adb_base = ["adb", "-P", adb_port]
+
     def worker():
         val_dir.mkdir(parents=True, exist_ok=True)
         raw_upright_path = val_dir / "latest_raw_upright.jpg"
@@ -412,13 +415,20 @@ def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555
         tmp_local = val_dir / ".incoming_frame.jpg"
         tmp_upright = val_dir / ".upright_tmp.jpg"
         ctrl_path = val_dir / "control.json"
+        telem_file = val_dir / ".telemetry.json"
         snap_script = (
-            "am force-stop com.termux.api >/dev/null 2>&1; sleep 0.4; "
+            "am force-stop com.termux.api >/dev/null 2>&1; sleep 0.2; "
             "am start -n com.termux.api/.activities.TermuxAPILauncherActivity >/dev/null 2>&1; "
-            "sleep 1.0; su -c '/data/data/com.termux/files/usr/bin/termux-camera-photo -c 0 /sdcard/live_stream.jpg'; "
+            "sleep 0.5; su -c '/data/data/com.termux/files/usr/bin/termux-camera-photo -c 0 /sdcard/live_stream.jpg'; "
             "input keyevent KEYCODE_SLEEP >/dev/null 2>&1"
         )
-        print("[Urban Vision Appliance] Native ADB background S20 FE ingestion worker active.", flush=True)
+        print(f"[Urban Vision Appliance] Native ADB background S20 FE ingestion worker active (port {adb_port}, target {target}).", flush=True)
+        # Initial connection
+        try:
+            subprocess.run([*adb_base, "connect", target], capture_output=True, timeout=5)
+        except Exception:
+            pass
+
         while True:
             try:
                 # 0. Check control state (default: running)
@@ -435,26 +445,40 @@ def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555
 
                 # 1. Thermal guardrail check via native ADB
                 t_res = subprocess.run(
-                    ["adb", "-s", target, "shell", "cat", "/sys/class/power_supply/battery/temp"],
+                    [*adb_base, "-s", target, "shell", "cat", "/sys/class/power_supply/battery/temp"],
                     capture_output=True, text=True, timeout=5
                 )
                 temp_c = 25.0
                 if t_res.returncode == 0 and t_res.stdout.strip().isdigit():
                     temp_c = int(t_res.stdout.strip()) / 10.0
+                    try:
+                        t_data = {}
+                        if telem_file.exists():
+                            with open(telem_file, "r") as tf:
+                                t_data = json.load(tf)
+                        t_data["edge_temp"] = temp_c
+                        tmp_telem = str(telem_file) + ".tmp"
+                        with open(tmp_telem, "w") as tf:
+                            json.dump(t_data, tf)
+                        os.replace(tmp_telem, str(telem_file))
+                    except Exception:
+                        pass
+
                 if temp_c >= 40.0:
                     print(f"[Ingestion] Thermal guardrail tripped: S20 FE battery is {temp_c:.1f}°C (>=40.0°C). Pausing 60s.", flush=True)
                     time.sleep(60)
                     continue
 
                 # 2. Trigger optical capture via foreground TermuxAPI
+                t_cap_start = time.time()
                 c_res = subprocess.run(
-                    ["adb", "-s", target, "shell", snap_script],
+                    [*adb_base, "-s", target, "shell", snap_script],
                     capture_output=True, text=True, timeout=15
                 )
 
                 # 3. Pull frame via native ADB (4.5 MB/s over Tailscale loopback)
                 p_res = subprocess.run(
-                    ["adb", "-s", target, "pull", "/sdcard/live_stream.jpg", str(tmp_local)],
+                    [*adb_base, "-s", target, "pull", "/sdcard/live_stream.jpg", str(tmp_local)],
                     capture_output=True, text=True, timeout=10
                 )
                 if p_res.returncode == 0 and tmp_local.exists() and tmp_local.stat().st_size > 10000:
@@ -463,8 +487,19 @@ def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555
                         upright_img.save(str(tmp_upright), format="JPEG", quality=88)
                         os.replace(str(tmp_upright), str(raw_upright_path))
                         shutil.copyfile(str(raw_upright_path), str(raw_path))
-            except Exception:
-                pass
+                    elapsed = time.time() - t_cap_start
+                    sz_kb = os.path.getsize(raw_upright_path) / 1024.0
+                    print(f"[Ingestion] Fresh frame captured ({sz_kb:.1f} KB in {elapsed:.2f}s). S20 Temp: {temp_c:.1f}°C", flush=True)
+                else:
+                    err_msg = p_res.stderr.strip() or c_res.stderr.strip() or "pull failed"
+                    print(f"[Ingestion Warning] Frame capture/pull incomplete: {err_msg}. Reconnecting...", flush=True)
+                    subprocess.run([*adb_base, "connect", target], capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"[Ingestion Loop Error] {e}", flush=True)
+                try:
+                    subprocess.run([*adb_base, "connect", target], capture_output=True, timeout=5)
+                except Exception:
+                    pass
             time.sleep(interval_sec)
 
     t = threading.Thread(target=worker, daemon=True, name="S20-ADB-Ingestion")
