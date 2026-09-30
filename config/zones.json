@@ -1,0 +1,245 @@
+{
+  "description": "Perspective polygon coordinates (0.0 to 1.0) for Rua Barata Ribeiro 726 & 723 camera FOV",
+  "roadway_roi": {
+    "name": "Barata Ribeiro Roadway (Perspective Trapezoid)",
+    "polygon": [
+      [
+        0.014,
+        0.685
+      ],
+      [
+        0.984,
+        0.711
+      ],
+      [
+        1,
+        0.98
+      ],
+      [
+        0,
+        0.98
+      ]
+    ]
+  },
+  "bus_lane": {
+    "name": "Faixa Exclusiva BRS \u00d4nibus (Perspective)",
+    "polygon": [
+      [
+        0.052,
+        0.831
+      ],
+      [
+        0.941,
+        0.884
+      ],
+      [
+        0.99,
+        0.98
+      ],
+      [
+        0.087,
+        0.977
+      ]
+    ]
+  },
+  "condo_723_gate": {
+    "name": "Portaria Social Condom\u00ednio 723",
+    "polygon": [
+      [
+        0.417,
+        0.539
+      ],
+      [
+        0.693,
+        0.544
+      ],
+      [
+        0.69,
+        0.633
+      ],
+      [
+        0.417,
+        0.629
+      ]
+    ]
+  },
+  "bar_tables": {
+    "name": "Mesas do Bar na Cal\u00e7ada (Toldo Vermelho)",
+    "polygon": [
+      [
+        0.878,
+        0.537
+      ],
+      [
+        1,
+        0.529
+      ],
+      [
+        0.991,
+        0.706
+      ],
+      [
+        0.878,
+        0.7
+      ],
+      [
+        0.868,
+        0.609
+      ]
+    ]
+  },
+  "entrance_vestibule": {
+    "name": "Portaria 726 & Cal\u00e7ada em Frente",
+    "polygon": [
+      [
+        0.78,
+        0.85
+      ],
+      [
+        1,
+        0.85
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        0.76,
+        1
+      ]
+    ]
+  },
+  "streetlamp_photometric": {
+    "name": "Poste Rioluz & Asfalto Adjacente",
+    "polygon": [
+      [
+        0.295,
+        0.331
+      ],
+      [
+        0.347,
+        0.33
+      ],
+      [
+        0.346,
+        0.368
+      ],
+      [
+        0.292,
+        0.367
+      ]
+    ]
+  },
+  "apartment_windows": [
+    {
+      "id": "apt_101",
+      "label": "Apartment 101",
+      "polygon": [
+        [
+          0.023,
+          0.335
+        ],
+        [
+          0.185,
+          0.331
+        ],
+        [
+          0.196,
+          0.376
+        ],
+        [
+          0.031,
+          0.379
+        ]
+      ]
+    },
+    {
+      "id": "apt_102",
+      "label": "Apartment 102",
+      "polygon": [
+        [
+          0.399,
+          0.42
+        ],
+        [
+          0.717,
+          0.419
+        ],
+        [
+          0.717,
+          0.488
+        ],
+        [
+          0.403,
+          0.501
+        ]
+      ]
+    },
+    {
+      "id": "apt_201",
+      "label": "Apartment 201",
+      "polygon": [
+        [
+          0,
+          0.117
+        ],
+        [
+          0.356,
+          0.124
+        ],
+        [
+          0.36,
+          0.174
+        ],
+        [
+          0.002,
+          0.171
+        ]
+      ]
+    },
+    {
+      "id": "apt_202",
+      "label": "Apartment 202",
+      "polygon": [
+        [
+          0.395,
+          0.321
+        ],
+        [
+          0.719,
+          0.312
+        ],
+        [
+          0.716,
+          0.383
+        ],
+        [
+          0.401,
+          0.388
+        ]
+      ]
+    },
+    {
+      "id": "doctor_fit",
+      "label": "Doctor Fit Commercial",
+      "polygon": [
+        [
+          0.22,
+          0.51
+        ],
+        [
+          0.42,
+          0.51
+        ],
+        [
+          0.415,
+          0.63
+        ],
+        [
+          0.215,
+          0.63
+        ]
+      ]
+    }
+  ]
+}

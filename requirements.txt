@@ -1,0 +1,28 @@
+# Core Deep Learning & Computer Vision (CPU AVX2 Optimized)
+ultralytics==8.3.82
+opencv-python-headless==4.10.0.84
+numpy>=1.24.0,<2.0.0
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Ingestion, Media & Streaming
+av>=12.0.0
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Acoustics & Audio Digital Signal Processing
+scipy>=1.11.0
+
+# API & Web Serving
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+
+# Telemetry & Cluster Integrations
+paho-mqtt>=2.1.0
+pyyaml>=6.0.1
+psutil>=5.9.0
+
+# High-Performance Compression
+zstandard>=0.23.0

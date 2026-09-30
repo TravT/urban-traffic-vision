@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Urban Vision — Multi-Modal Command Center & Live Optical Stream</title>
+  <style>
+    :root {
+      --bg: #070a12;
+      --card-bg: #0f172a;
+      --card-hover: #162038;
+      --border: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --accent-cyan: #00f0ff;
+      --accent-magenta: #d946ef;
+      --accent-purple: #c084fc;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1140px;
+      width: 100%;
+    }
+
+    /* Top Navigation Header */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .header-titles h1 {
+      font-size: 1.35rem;
+      color: var(--accent-blue);
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.5px;
+    }
+    .header-titles .subtitle {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-top: 2px;
+    }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      touch-action: manipulation;
+    }
+    .btn:hover { background: #334155; border-color: #475569; }
+    .btn.active { background: #2563eb; border-color: #38bdf8; color: #fff; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+    .btn-green { background: #166534; border-color: #22c55e; color: white; }
+    .btn-green:hover { background: #15803d; }
+    .btn-red { background: #991b1b; border-color: #ef4444; color: white; }
+    .btn-red:hover { background: #b91c1c; }
+    .btn-purple { background: #581c87; border-color: #a855f7; color: white; }
+    .btn-purple:hover { background: #6b21a8; }
+
+    /* Video Stream Viewport & Canvas Vector Overlay */
+    .stream-card {
+      position: relative;
+      width: 100%;
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8);
+      margin-bottom: 14px;
+    }
+    .stream-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      gap: 8px;
+    }
+    .stream-viewport-container {
+      position: relative;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+      min-height: 440px;
+    }
+    img#feed {
+      width: 100%;
+      height: auto;
+      display: block;
+      user-select: none;
+    }
+    canvas#vectorCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .badge-live {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(220, 38, 38, 0.9);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .badge-timestamp {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid var(--border);
+      color: var(--accent-cyan);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.72rem;
+      font-family: monospace;
+      z-index: 10;
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: blink 1.2s infinite ease-in-out;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* 8-Layer Multi-Modal Telemetry Command Grid */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .telemetry-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.2s;
+    }
+    .telemetry-card:hover {
+      border-color: #334155;
+      background: var(--card-hover);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .card-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-tag {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .tag-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    .tag-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+    .tag-alert { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; }
+    .tag-info { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #0284c7; }
+
+    .card-metric-primary {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2px 0 6px 0;
+    }
+    .card-metrics-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .card-metrics-row strong {
+      color: var(--text-main);
+    }
+
+    /* Active Targets Table Card */
+    .tracks-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .tracks-card h3 {
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      min-width: 580px;
+    }
+    th {
+      text-align: left;
+      padding: 6px 10px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #1e293b;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .class-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .class-car { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    .class-bus { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #0284c7; }
+    .class-motorcycle { background: rgba(249, 115, 22, 0.25); color: #fb923c; border: 1px solid #ea580c; }
+    .class-person { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #d97706; }
+    .class-truck { background: rgba(217, 70, 239, 0.2); color: #e879f9; border: 1px solid #c026d3; }
+
+    /* Footer */
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      width: 100%;
+    }
+    .footer a { color: var(--accent-blue); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header Navigation -->
+    <div class="header">
+      <div class="header-titles">
+        <h1>🚦 Urban Vision — Multi-Modal Command Center</h1>
+        <div class="subtitle">Samsung Galaxy S20 FE 12MP • Rua Barata Ribeiro 726/723 • Dell Latitude 7390 AVX2</div>
+      </div>
+      <div class="btn-group">
+        <a href="/editor" class="btn btn-purple">📐 Open Spatial Studio</a>
+        <a href="/validation_audit.csv" class="btn" download>📊 Ground-Truth CSV</a>
+      </div>
+    </div>
+
+    <!-- Live Stream Card & Canvas Vector Overlay -->
+    <div class="stream-card">
+      <div class="stream-toolbar">
+        <div class="btn-group">
+          <button id="btnToggleZones" class="btn active" onclick="toggleZonesOverlay()">📐 Show All Areas / Zones</button>
+          <button id="btnToggleLabels" class="btn active" onclick="toggleLabelsOverlay()">🏷️ Zone Labels</button>
+        </div>
+        <div class="btn-group">
+          <button id="btnAnnotated" class="btn active" onclick="setViewMode('annotated')">🟢 AI Annotated Overlay</button>
+          <button id="btnRaw" class="btn" onclick="setViewMode('raw')">🔴 Raw Camera Feed</button>
+        </div>
+      </div>
+
+      <div class="stream-viewport-container">
+        <div class="badge-live"><div class="pulse"></div> LIVE CAMERA (12MP)</div>
+        <div class="badge-timestamp" id="frameTimestamp">--:--:--</div>
+        <img id="feed" src="/frame_annotated.jpg" alt="Live Camera Stream">
+        <canvas id="vectorCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- 8-Layer Multi-Modal Telemetry Command Grid -->
+    <div class="telemetry-grid">
+      <!-- Layer 1: Dedicated Bus Lane Compliance -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🚏 Dedicated Bus Lane</span>
+          <span id="busLaneTag" class="status-tag tag-ok">COMPLIANT</span>
+        </div>
+        <div class="card-metric-primary" id="busInfractionCount">0 Infractions</div>
+        <div class="card-metrics-row">
+          <span>Active Standing:</span>
+          <strong id="busActiveStanding">None (0.0s)</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Standing Threshold:</span>
+          <strong>15.0 seconds</strong>
+        </div>
+      </div>
+
+      <!-- Layer 2: Roadway Velocity & Speed Limit -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🚗 Roadway Velocity</span>
+          <span class="status-tag tag-info">50 km/h Limit</span>
+        </div>
+        <div class="card-metric-primary" id="roadwayActiveCount">1 Vehicle</div>
+        <div class="card-metrics-row">
+          <span>25m Baseline Speed:</span>
+          <strong id="roadwaySpeed">Parked (0.0 km/h)</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Heading Vector:</span>
+          <strong id="roadwayHeading">Parked / Stopped</strong>
+        </div>
+      </div>
+
+      <!-- Layer 3: Condominium 723 Gate Portal -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🏢 Condo 723 Gate Dwell</span>
+          <span id="condoTag" class="status-tag tag-info">Active Re-ID</span>
+        </div>
+        <div class="card-metric-primary" id="condoOccupants">0 Active</div>
+        <div class="card-metrics-row">
+          <span>Completed Visits:</span>
+          <strong id="condoVisits">0 recorded</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Max Dwell Threshold:</span>
+          <strong>2h Auto-Expire</strong>
+        </div>
+      </div>
+
+      <!-- Layer 4: Sidewalk Bar Table Cluster -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🍻 Sidewalk Bar Tables</span>
+          <span id="barTag" class="status-tag tag-ok">VACANT</span>
+        </div>
+        <div class="card-metric-primary" id="barPatrons">0 Patrons</div>
+        <div class="card-metrics-row">
+          <span>Table Dwell Time:</span>
+          <strong id="barDwell">0.0 min</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Noise Floor Ratio:</span>
+          <strong id="barNoiseRatio">Normal</strong>
+        </div>
+      </div>
+
+      <!-- Layer 5: Apartment Facade & Occupancy -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🪟 Apartment Facade</span>
+          <span class="status-tag tag-info">HSV Luminosity</span>
+        </div>
+        <div class="card-metric-primary" id="occRate">--% Occupancy</div>
+        <div class="card-metrics-row">
+          <span>Residential Units:</span>
+          <strong id="occUnits">0 / 4 active</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Doctor Fit Commercial:</span>
+          <strong id="docFitStatus">--</strong>
+        </div>
+      </div>
+
+      <!-- Layer 6: Photometrics & Rioluz Streetlamp -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🌙 Photometrics & Lamp</span>
+          <span id="lampTag" class="status-tag tag-ok">LAMP ACTIVE</span>
+        </div>
+        <div class="card-metric-primary" id="lampState">STREETLAMP_ON</div>
+        <div class="card-metrics-row">
+          <span>Solar Elevation:</span>
+          <strong id="sunElevation">-65.7° (Night)</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Road Puddle Index:</span>
+          <strong id="roadCondition">DAMP (0.38)</strong>
+        </div>
+      </div>
+
+      <!-- Layer 7: Urban Acoustic Intelligence -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🎙️ Acoustic Intelligence</span>
+          <span id="acousticTag" class="status-tag tag-info">IIR Butterworth</span>
+        </div>
+        <div class="card-metric-primary" id="acousticLeq">42.5 dB</div>
+        <div class="card-metrics-row">
+          <span>Traffic Peaks (L10 / L90):</span>
+          <strong id="acousticPercentiles">48 dB / 38 dB</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Active Sound Event:</span>
+          <strong id="acousticEvent">Normal Traffic Flow</strong>
+        </div>
+      </div>
+
+      <!-- Layer 8: Data Observability & Alignment Watchdog -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">🛡️ Data Quality & Mount</span>
+          <span id="qaGradeTag" class="status-tag tag-ok">EXCELLENT</span>
+        </div>
+        <div class="card-metric-primary" id="qaScore">95.0% Score</div>
+        <div class="card-metrics-row">
+          <span>Optical Mount Drift:</span>
+          <strong id="mountDrift">0.0 px (Aligned)</strong>
+        </div>
+        <div class="card-metrics-row">
+          <span>Lens Clarity / Temp:</span>
+          <strong id="lensClarity">100% Clear • 24.1°C</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active YOLOv8 Ground-Truth Detections Table -->
+    <div class="tracks-card">
+      <h3>
+        <span>🎯 Active YOLOv8 Detections in Current Frame</span>
+        <span id="activeCountBadge" style="font-size:0.75rem; color:var(--text-muted);">0 targets detected</span>
+      </h3>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Class</th>
+              <th>Confidence</th>
+              <th>Centroid (X, Y)</th>
+              <th>Heading</th>
+              <th>Velocity</th>
+            </tr>
+          </thead>
+          <tbody id="tracksTableBody">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px;">
+                Waiting for active tracks from YOLOv8 inference engine...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span>📁 Storage: <code>/data/media/merged/vision/validation/</code></span>
+      <span>📊 <a href="/validation_audit.csv" download>Download Ground-Truth CSV Log</a></span>
+      <span>📐 <a href="/editor">Open Spatial Calibration Studio</a></span>
+    </div>
+  </div>
+
+  <script>
+    let showZones = true;
+    let showLabels = true;
+    let viewMode = 'annotated';
+    let zonesData = null;
+
+    function toggleZonesOverlay() {
+      showZones = !showZones;
+      document.getElementById('btnToggleZones').className = showZones ? 'btn active' : 'btn';
+      renderVectorOverlay();
+    }
+
+    function toggleLabelsOverlay() {
+      showLabels = !showLabels;
+      document.getElementById('btnToggleLabels').className = showLabels ? 'btn active' : 'btn';
+      renderVectorOverlay();
+    }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      document.getElementById('btnAnnotated').className = mode === 'annotated' ? 'btn active' : 'btn';
+      document.getElementById('btnRaw').className = mode === 'raw' ? 'btn active' : 'btn';
+      refreshImage();
+    }
+
+    function refreshImage() {
+      const feed = document.getElementById('feed');
+      const endpoint = viewMode === 'annotated' ? '/frame_annotated.jpg' : '/frame_raw.jpg';
+      const nextImg = new Image();
+      nextImg.onload = () => {
+        feed.src = nextImg.src;
+        document.getElementById('frameTimestamp').textContent = new Date().toLocaleTimeString();
+        renderVectorOverlay();
+      };
+      nextImg.src = endpoint + '?t=' + Date.now();
+    }
+
+    function renderVectorOverlay() {
+      const feed = document.getElementById('feed');
+      const canvas = document.getElementById('vectorCanvas');
+      if (!feed || !feed.complete || feed.naturalWidth === 0) return;
+
+      canvas.width = feed.clientWidth;
+      canvas.height = feed.clientHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!showZones || !zonesData) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Draw helper function
+      function drawPolygon(pts, strokeColor, fillColor, label, badgeText) {
+        if (!pts || pts.length < 3) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0] * w, pts[0][1] * h);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i][0] * w, pts[i][1] * h);
+        }
+        ctx.closePath();
+
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = strokeColor;
+        ctx.shadowBlur = 8;
+        ctx.stroke();
+
+        // Render label badge
+        if (showLabels && label) {
+          const cx = (pts.reduce((sum, p) => sum + p[0], 0) / pts.length) * w;
+          const cy = (pts.reduce((sum, p) => sum + p[1], 0) / pts.length) * h;
+
+          ctx.shadowBlur = 0;
+          ctx.font = 'bold 11px -apple-system, sans-serif';
+          const txt = badgeText ? `${label}: ${badgeText}` : label;
+          const textWidth = ctx.measureText(txt).width;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(cx - textWidth/2 - 6, cy - 10, textWidth + 12, 20, 4);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(txt, cx, cy);
+        }
+        ctx.restore();
+      }
+
+      // 1. Bus Lane (Red)
+      if (zonesData.bus_lane && zonesData.bus_lane.polygon) {
+        drawPolygon(zonesData.bus_lane.polygon, 'rgba(239, 68, 68, 0.9)', 'rgba(239, 68, 68, 0.15)', '🚏 Faixa Ônibus BRS', 'LIVRE');
+      }
+
+      // 2. Roadway Perspective (Cyan/Blue)
+      if (zonesData.roadway_roi && zonesData.roadway_roi.polygon) {
+        drawPolygon(zonesData.roadway_roi.polygon, 'rgba(56, 189, 248, 0.9)', 'rgba(56, 189, 248, 0.1)', '🚗 Pista Asfalto', '50 km/h');
+      }
+
+      // 3. Condo 723 Gate Portal (Neon Cyan)
+      if (zonesData.condo_723_gate && zonesData.condo_723_gate.polygon) {
+        drawPolygon(zonesData.condo_723_gate.polygon, 'rgba(0, 240, 255, 0.9)', 'rgba(0, 240, 255, 0.2)', '🏢 Portaria 723', 'Re-ID');
+      }
+
+      // 4. Sidewalk Bar Tables (Magenta)
+      if (zonesData.bar_tables && zonesData.bar_tables.polygon) {
+        drawPolygon(zonesData.bar_tables.polygon, 'rgba(217, 70, 239, 0.9)', 'rgba(217, 70, 239, 0.15)', '🍻 Mesas Bar', 'Dwell');
+      }
+
+      // 5. Streetlamp ROI (Green)
+      if (zonesData.streetlamp_roi && zonesData.streetlamp_roi.polygon) {
+        drawPolygon(zonesData.streetlamp_roi.polygon, 'rgba(34, 197, 94, 0.9)', 'rgba(34, 197, 94, 0.12)', '💡 Rioluz Poste', 'ON');
+      }
+
+      // 6. Apartment Windows (Amber)
+      if (zonesData.apartment_windows) {
+        const wins = zonesData.apartment_windows;
+        if (typeof wins === 'object') {
+          for (const [key, val] of Object.entries(wins)) {
+            if (val && val.polygon) {
+              const name = val.name || key;
+              drawPolygon(val.polygon, 'rgba(245, 158, 11, 0.9)', 'rgba(245, 158, 11, 0.15)', name, null);
+            }
+          }
+        }
+      }
+    }
+
+    async function loadZones() {
+      try {
+        const res = await fetch('/api/zones');
+        zonesData = await res.json();
+        renderVectorOverlay();
+      } catch (e) {
+        console.error('Failed to load zones:', e);
+      }
+    }
+
+    async function updateTelemetryHUD() {
+      // 1. Stats & Targets
+      try {
+        const res = await fetch('/api/stats');
+        const d = await res.json();
+
+        const activeVeh = d.active_vehicles || 0;
+        const totalVeh = (d.total_cars || 0) + (d.total_buses || 0) + (d.total_motorcycles || 0) || d.total_vehicles || 0;
+
+        document.getElementById('roadwayActiveCount').textContent = `${activeVeh} Vehicle${activeVeh === 1 ? '' : 's'}`;
+
+        const tracks = d.active_tracks || [];
+        document.getElementById('activeCountBadge').textContent = `${tracks.length} target${tracks.length === 1 ? '' : 's'} detected`;
+
+        if (tracks.length > 0) {
+          const first = tracks[0];
+          document.getElementById('roadwaySpeed').textContent = first.velocity_px_s ? `${first.velocity_px_s.toFixed(1)} px/s` : 'Parked (0.0 km/h)';
+          document.getElementById('roadwayHeading').textContent = first.heading || 'Stationary';
+        }
+
+        const tbody = document.getElementById('tracksTableBody');
+        if (tracks.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px;">No active vehicles or pedestrians in frame</td></tr>`;
+        } else {
+          let rows = '';
+          tracks.forEach(t => {
+            const cls = t.class || 'object';
+            const confPct = Math.round((t.conf || 0) * 100);
+            const cx = t.centroid ? t.centroid[0].toFixed(0) : '-';
+            const cy = t.centroid ? t.centroid[1].toFixed(0) : '-';
+            const heading = t.heading || 'Stationary';
+            const vel = t.velocity_px_s ? `${t.velocity_px_s.toFixed(1)} px/s` : '0.0 km/h';
+
+            rows += `
+              <tr>
+                <td><strong>#${t.id}</strong></td>
+                <td><span class="class-badge class-${cls}">${cls}</span></td>
+                <td><strong style="color:var(--accent-green);">${confPct}%</strong></td>
+                <td><code>(${cx}, ${cy})</code></td>
+                <td>${heading}</td>
+                <td>${vel}</td>
+              </tr>
+            `;
+          });
+          tbody.innerHTML = rows;
+        }
+
+        if (d.edge_temp || d.edge_temp_c) {
+          const temp = d.edge_temp_c || d.edge_temp;
+          document.getElementById('lensClarity').textContent = `100% Clear • ${temp.toFixed(1)}°C`;
+        }
+      } catch (e) {}
+
+      // 2. Bus Lane Compliance
+      try {
+        const res = await fetch('/api/traffic/buslane');
+        const d = await res.json();
+        const active = d.active_infractions_count || 0;
+        const total = d.total_infractions_recorded || 0;
+        document.getElementById('busInfractionCount').textContent = `${total} Infraction${total === 1 ? '' : 's'}`;
+        const tag = document.getElementById('busLaneTag');
+        if (active > 0) {
+          tag.className = 'status-tag tag-alert';
+          tag.textContent = 'INFRACTION ALERT';
+          document.getElementById('busActiveStanding').textContent = `Vehicle Standing (${d.active_infractions[0]?.standing_duration_sec?.toFixed(1) || 15}s)`;
+        } else {
+          tag.className = 'status-tag tag-ok';
+          tag.textContent = 'COMPLIANT';
+          document.getElementById('busActiveStanding').textContent = 'None (Clear)';
+        }
+      } catch (e) {}
+
+      // 3. Dwell & Bar
+      try {
+        const res = await fetch('/api/dwell');
+        const d = await res.json();
+        if (d.condo_gate) {
+          document.getElementById('condoOccupants').textContent = `${d.condo_gate.active_occupants_count || 0} Active`;
+          document.getElementById('condoVisits').textContent = `${d.condo_gate.total_completed_visits || 0} recorded`;
+        }
+        if (d.sidewalk_bar) {
+          const patrons = d.sidewalk_bar.seated_patrons_count || 0;
+          document.getElementById('barPatrons').textContent = `${patrons} Patron${patrons === 1 ? '' : 's'}`;
+          const tag = document.getElementById('barTag');
+          if (patrons > 0) {
+            tag.className = 'status-tag tag-warn';
+            tag.textContent = 'ACTIVE PATRONS';
+            document.getElementById('barDwell').textContent = `${(d.sidewalk_bar.mean_table_dwell_seconds / 60).toFixed(1)} min`;
+          } else {
+            tag.className = 'status-tag tag-ok';
+            tag.textContent = 'VACANT';
+            document.getElementById('barDwell').textContent = '0.0 min';
+          }
+        }
+      } catch (e) {}
+
+      // 4. Facade Occupancy
+      try {
+        const res = await fetch('/api/occupancy');
+        const d = await res.json();
+        if (d.occupancy_rate_pct !== undefined) {
+          document.getElementById('occRate').textContent = `${d.occupancy_rate_pct}% Occupancy`;
+          document.getElementById('occUnits').textContent = `${d.active_residential_count} / ${d.total_residential_count} active`;
+          const doc = d.windows?.find(w => w.window_id === 'doctor_fit');
+          document.getElementById('docFitStatus').textContent = doc ? (doc.is_illuminated ? '💡 OPEN' : '🌙 CLOSED') : 'CLOSED';
+        }
+      } catch (e) {}
+
+      // 5. Photometrics & Streetlamp
+      try {
+        const res = await fetch('/api/environmental');
+        const d = await res.json();
+        if (d.streetlamp) {
+          document.getElementById('lampState').textContent = d.streetlamp.state;
+          const tag = document.getElementById('lampTag');
+          tag.className = d.streetlamp.state === 'STREETLAMP_ON' ? 'status-tag tag-ok' : 'status-tag tag-warn';
+          tag.textContent = d.streetlamp.state === 'STREETLAMP_ON' ? 'LAMP ACTIVE' : 'DAYLIGHT OFF';
+        }
+        if (d.telemetry) {
+          document.getElementById('sunElevation').textContent = `${d.telemetry.solar_elevation?.toFixed(1)}° (${d.telemetry.sun_state})`;
+        }
+        if (d.roadway) {
+          document.getElementById('roadCondition').textContent = `${d.roadway.road_condition} (${d.roadway.specular_index?.toFixed(2)})`;
+        }
+      } catch (e) {}
+
+      // 6. Acoustic
+      try {
+        const res = await fetch('/api/acoustic');
+        const d = await res.json();
+        if (d.noise_floor) {
+          document.getElementById('acousticLeq').textContent = `${d.noise_floor.L_eq?.toFixed(1) || 42.5} dB`;
+          document.getElementById('acousticPercentiles').textContent = `${d.noise_floor.L_10?.toFixed(0) || 48} dB / ${d.noise_floor.L_90?.toFixed(0) || 38} dB`;
+        }
+        if (d.recent_events && d.recent_events.length > 0) {
+          const ev = d.recent_events[0];
+          document.getElementById('acousticEvent').textContent = `${ev.type} (${ev.confidence ? Math.round(ev.confidence*100)+'%' : 'Detected'})`;
+        } else {
+          document.getElementById('acousticEvent').textContent = 'Normal Traffic Flow';
+        }
+      } catch (e) {}
+
+      // 7. Quality & Watchdog
+      try {
+        const res = await fetch('/api/quality/audit');
+        const d = await res.json();
+        if (d.quality_score !== undefined) {
+          document.getElementById('qaScore').textContent = `${d.quality_score.toFixed(1)}% Score`;
+          const tag = document.getElementById('qaGradeTag');
+          tag.textContent = d.grade || 'EXCELLENT';
+          tag.className = d.grade === 'EXCELLENT' ? 'status-tag tag-ok' : 'status-tag tag-warn';
+        }
+        if (d.optical_alignment) {
+          const drift = d.optical_alignment.max_drift_px || 0.0;
+          document.getElementById('mountDrift').textContent = `${drift.toFixed(1)} px (${d.optical_alignment.is_aligned ? 'Aligned' : 'Shifted'})`;
+        }
+      } catch (e) {}
+    }
+
+    // Auto-refresh loops
+    setInterval(refreshImage, 2500);
+    setInterval(updateTelemetryHUD, 2000);
+    window.addEventListener('resize', renderVectorOverlay);
+
+    // Initial load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadZones();
+      refreshImage();
+      updateTelemetryHUD();
+    });
+  </script>
+</body>
+</html>

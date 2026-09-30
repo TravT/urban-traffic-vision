@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Urban Vision — Spatial Calibration Studio</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --panel-bg: #1c2128;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --accent-blue: #58a6ff;
+      --accent-cyan: #00f0ff;
+      --accent-magenta: #d946ef;
+      --accent-green: #2ea043;
+      --accent-amber: #f59e0b;
+      --accent-red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .header-left { display: flex; flex-direction: column; gap: 2px; }
+    h1 { margin: 0; font-size: 1.25rem; color: #ffffff; font-weight: 700; }
+    .subtitle { color: var(--text-muted); font-size: 0.8rem; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    button, select {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.82rem;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    button:hover, select:hover { background: #21262d; border-color: var(--text-muted); }
+    button.primary { background: #238636; border-color: rgba(240, 246, 252, 0.1); font-weight: 600; }
+    button.primary:hover { background: #2ea043; }
+    button.active { background: #1f6feb; border-color: #388bfd; }
+    a.btn-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+    a.btn-link:hover { color: #fff; background: #21262d; }
+
+    /* Studio Toolbar */
+    .studio-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+    .toolbar-section { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.82rem; }
+    .slider-control { display: flex; align-items: center; gap: 5px; }
+    .slider-control input[type="range"] {
+      width: 75px;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    /* Quick Zone Selector Bar (Crucial for Mobile) */
+    .quick-chips {
+      display: flex;
+      overflow-x: auto;
+      gap: 6px;
+      padding: 2px 2px 8px 2px;
+      margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chip {
+      white-space: nowrap;
+      padding: 6px 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .chip:hover { background: #21262d; }
+    .chip.selected {
+      border-color: #58a6ff;
+      background: #1c2128;
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+    }
+    .chip-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* Main Workspace Layout (Mobile First: Canvas on top, sidebar below) */
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+      width: 100%;
+    }
+
+    /* Desktop View (screens >= 960px) */
+    @media (min-width: 960px) {
+      .workspace {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 16px;
+      }
+    }
+
+    .viewport-card {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      min-height: 420px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      touch-action: none; /* Disables browser scrolling while dragging on canvas */
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: auto;
+    }
+    .canvas-wrapper.pan-mode { cursor: grab; }
+    .canvas-wrapper.panning { cursor: grabbing; }
+
+    canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      touch-action: none;
+      transform-origin: 0 0;
+      transition: filter 0.1s ease;
+    }
+
+    .coords-overlay {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      font-family: monospace;
+      color: var(--accent-cyan);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Sidebar Panels */
+    .sidebar { display: flex; flex-direction: column; gap: 12px; }
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .panel h3 {
+      margin: 0 0 8px 0;
+      font-size: 0.9rem;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .zone-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      max-height: 320px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .zone-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-left: 4px solid var(--text-muted);
+      transition: all 0.2s;
+    }
+    .zone-row:hover { background: #161b22; }
+    .zone-row.selected {
+      border-color: #58a6ff;
+      background: #1c2128;
+    }
+    .zone-row.condo { border-left-color: var(--accent-cyan); }
+    .zone-row.bar { border-left-color: var(--accent-magenta); }
+    .zone-row.bus { border-left-color: var(--accent-red); }
+    .zone-row.window { border-left-color: var(--accent-amber); }
+    .zone-row.roadway { border-left-color: var(--accent-blue); }
+    .zone-row.lamp { border-left-color: var(--accent-green); }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .badge.daylight { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .badge.night { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+
+    /* Sticky Save Button for Mobile */
+    .mobile-floating-save {
+      display: none;
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 99;
+    }
+    @media (max-width: 959px) {
+      .mobile-floating-save { display: block; }
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #238636;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ADR-31 Benchmarks Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-width: 760px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .modal-header h2 { margin: 0; font-size: 1.15rem; color: #fff; }
+    .close-btn { background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; padding: 0 5px; }
+    .close-btn:hover { color: #fff; }
+    .profile-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin: 12px 0 18px 0;
+    }
+    .profile-table th, .profile-table td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .profile-table th { background: #0d1117; color: var(--accent-blue); }
+    .profile-table tr:nth-child(even) { background: #1c2128; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <h1>Spatial Calibration Studio</h1>
+      <span class="subtitle">Rua Barata Ribeiro 726 & 723 • Precision ROI & Window Georeferencing</span>
+    </div>
+    <div class="btn-group">
+      <a href="/live" class="btn-link">⬅ Live Feed</a>
+      <button onclick="toggleBenchmarksModal()">📊 ADR-31 Profiles</button>
+      <button onclick="resetToDefaults()">Reset Defaults</button>
+      <button class="primary" onclick="saveZones()">💾 Save Zones</button>
+    </div>
+  </div>
+
+  <!-- Studio Toolbar -->
+  <div class="studio-toolbar">
+    <div class="toolbar-section">
+      <label for="frameSelect"><strong>Frame:</strong></label>
+      <select id="frameSelect" onchange="onFrameChange()">
+        <option value="clean_v4_upright.jpg">Loading frames...</option>
+      </select>
+      <span id="frameBadge" class="badge daylight">☀️ Daylight</span>
+    </div>
+
+    <div class="toolbar-section">
+      <div class="slider-control">
+        <span>☀️ Bright:</span>
+        <input type="range" id="brightnessSlider" min="50" max="300" value="100" oninput="applyFilters()">
+        <span id="brightVal">100%</span>
+      </div>
+      <div class="slider-control">
+        <span>🌓 Contrast:</span>
+        <input type="range" id="contrastSlider" min="50" max="250" value="100" oninput="applyFilters()">
+        <span id="contrastVal">100%</span>
+      </div>
+      <button onclick="resetFilters()">Reset Lighting</button>
+    </div>
+
+    <div class="toolbar-section">
+      <span>🔍 Zoom:</span>
+      <button id="zoom1x" class="active" onclick="setZoom(1.0)">1x</button>
+      <button id="zoom15x" onclick="setZoom(1.5)">1.5x</button>
+      <button id="zoom2x" onclick="setZoom(2.0)">2x</button>
+      <button id="panBtn" onclick="togglePanMode()">✋ Pan</button>
+    </div>
+  </div>
+
+  <!-- Quick Chips for Instant Layer Selection on Mobile -->
+  <div class="quick-chips" id="quickChips">
+    <div class="chip" onclick="selectZone('condo_723_gate', null)">
+      <span class="chip-dot" style="background:#00f0ff;"></span>
+      <span>Portaria 723</span>
+    </div>
+    <div class="chip" onclick="selectZone('bar_tables', null)">
+      <span class="chip-dot" style="background:#d946ef;"></span>
+      <span>Mesas do Bar</span>
+    </div>
+    <div class="chip" onclick="selectZone('bus_lane', null)">
+      <span class="chip-dot" style="background:#ef4444;"></span>
+      <span>Faixa Ônibus</span>
+    </div>
+    <div class="chip" onclick="selectZone('roadway_roi', null)">
+      <span class="chip-dot" style="background:#3b82f6;"></span>
+      <span>Pista Asfalto</span>
+    </div>
+    <div class="chip" onclick="selectZone('apartment_windows', 'doctor_fit')">
+      <span class="chip-dot" style="background:#f59e0b;"></span>
+      <span>Doctor Fit</span>
+    </div>
+    <div class="chip" onclick="selectZone('apartment_windows', 'apt_101')">
+      <span class="chip-dot" style="background:#f59e0b;"></span>
+      <span>Apt 101</span>
+    </div>
+    <div class="chip" onclick="selectZone('apartment_windows', 'apt_102')">
+      <span class="chip-dot" style="background:#f59e0b;"></span>
+      <span>Apt 102</span>
+    </div>
+  </div>
+
+  <!-- Workspace: Canvas Top, Details Below -->
+  <div class="workspace">
+    <div class="viewport-card">
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="studioCanvas"></canvas>
+      </div>
+      <div class="coords-overlay" id="coordsOverlay">X: 0.000 | Y: 0.000 (Normalized)</div>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel" id="selectionPanel">
+        <h3>
+          <span>Selected Zone Details</span>
+          <span id="selectedBadge" style="font-size:0.75rem; color:var(--accent-cyan);">● None</span>
+        </h3>
+        <div id="selectedDetails" style="font-size:0.82rem; color:var(--text-muted); line-height:1.5;">
+          Touch or click on any area on the picture to select and drag vertex points.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>
+          <span>Active Spatial Layers</span>
+          <button style="padding:2px 8px; font-size:0.75rem;" onclick="addNewWindow()">+ Add Window</button>
+        </h3>
+        <div class="zone-list" id="zoneList">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Diurnal Facade Occupancy</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>Occupancy Rate:</span>
+            <strong id="occRate" style="color:var(--accent-cyan);">--%</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>Active Residential Units:</span>
+            <strong id="occUnits">0 / 4</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>Doctor Fit Commercial:</span>
+            <strong id="docFitStatus">--</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🚶 Dwell Time & Re-ID Monitor</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>🏢 Condo 723 Occupants:</span>
+            <strong id="condoOccupants" style="color:var(--accent-cyan);">0 active</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>🚪 Completed Gate Visits:</span>
+            <strong id="condoVisits">0</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border);">
+            <span>🍻 Bar Table Status:</span>
+            <strong id="barTableState" style="color:var(--accent-magenta);">VACANT</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>👥 Seated Patrons:</span>
+            <strong id="barPatrons">0</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>⏱️ Table Dwell:</span>
+            <strong id="barDwell">0.0s</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🚗 Roadway Velocity & BRS Lane</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>🛣️ 25m Baseline Speed:</span>
+            <strong id="roadwaySpeed" style="color:var(--accent-blue);">-- km/h</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>🧭 Traffic Heading:</span>
+            <strong id="roadwayHeading">Eastbound -&gt;</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border);">
+            <span>🚌 BRS Bus Lane Status:</span>
+            <strong id="busLaneStatus" style="color:var(--accent-green);">Compliant</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>⚠️ Stopping Infractions:</span>
+            <strong id="busInfractions" style="color:var(--text-muted);">0 active</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🌙 Photometrics & Rioluz Streetlamp</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>💡 Rioluz Streetlamp:</span>
+            <strong id="streetlampState" style="color:var(--accent-amber);">--</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>☀️ Solar Elevation:</span>
+            <strong id="solarElev">--°</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>🌦️ HA Weather:</span>
+            <strong id="haWeather">--</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border);">
+            <span>🌧️ Road Surface:</span>
+            <strong id="roadSurfaceState" style="color:var(--accent-blue);">DRY</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>✨ Specular Puddle Index:</span>
+            <strong id="roadSpecularIndex">0.00</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🎙️ Urban Acoustic Intelligence</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>🔊 Noise Floor (Leq):</span>
+            <strong id="acousticLeq" style="color:var(--accent-cyan);">-- dB</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>📊 L10 Peak / L90 Ambient:</span>
+            <span id="acousticPercentiles" style="color:var(--text-muted);">-- / -- dB</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border);">
+            <span>🚨 Active Signature:</span>
+            <strong id="acousticActiveSignature" style="color:var(--accent-green);">None (Ambient)</strong>
+          </div>
+          <div style="margin-top:6px; display:flex; gap:4px; flex-wrap:wrap;">
+            <button style="padding:2px 6px; font-size:0.7rem;" onclick="simulateSound('siren')">🚨 Siren</button>
+            <button style="padding:2px 6px; font-size:0.7rem;" onclick="simulateSound('air_brake')">🚌 Air Brake</button>
+            <button style="padding:2px 6px; font-size:0.7rem;" onclick="simulateSound('screech')">⚡ Screech</button>
+            <button style="padding:2px 6px; font-size:0.7rem;" onclick="simulateSound('rain')">🌧️ Rain</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>🛡️ Data Quality & QA Audit</h3>
+        <div style="font-size:0.82rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Quality Score:</span>
+            <div>
+              <strong id="qaScore" style="color:var(--accent-green); font-size:1.0rem;">95.0%</strong>
+              <span id="qaGrade" class="badge daylight" style="margin-left:4px; font-size:0.7rem;">EXCELLENT</span>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>📐 Optical Alignment:</span>
+            <strong id="qaAlignment" style="color:var(--accent-cyan);">STABLE (0.0px)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>🔍 Lens Sharpness:</span>
+            <strong id="qaSharpness" style="color:var(--accent-blue);">100% (Clear)</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border);">
+            <span>⚠️ Active Anomalies:</span>
+            <strong id="qaAnomalies" style="color:var(--text-muted);">None</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADR-31 Benchmarks & Operating Profiles Modal -->
+  <div class="modal-backdrop" id="benchmarksModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📊 ADR-31: Operational Profiles & Dual-Batch Benchmarks</h2>
+        <button class="close-btn" onclick="toggleBenchmarksModal()">&times;</button>
+      </div>
+
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0;">
+        Multi-framerate Pareto optimization and environmental confidence matrix protecting Jellyfin transcoding and host resources.
+      </p>
+
+      <h3 style="font-size:0.92rem; color:var(--accent-cyan); margin:14px 0 6px 0;">1. Operational Sampling Profiles</h3>
+      <table class="profile-table">
+        <thead>
+          <tr>
+            <th>Profile</th>
+            <th>FPS</th>
+            <th>Bitrate</th>
+            <th>Daily GB</th>
+            <th>Host CPU</th>
+            <th>Primary Telemetry Targets</th>
+          </tr>
+        </thead>
+        <tbody id="profilesTableBody">
+          <tr>
+            <td><strong>🌱 Eco-Sensing</strong></td>
+            <td>2 FPS</td>
+            <td>0.8 Mbps</td>
+            <td>8.6 GB</td>
+            <td>&lt; 2.0%</td>
+            <td>Apartment Windows, Condo 723 Dwell Time, Sidewalk Bar</td>
+          </tr>
+          <tr>
+            <td><strong>⚖️ Balanced Urban</strong></td>
+            <td>5 FPS</td>
+            <td>2.2 Mbps</td>
+            <td>23.8 GB</td>
+            <td>~4.5%</td>
+            <td>Pedestrian sidewalk density, bus arrivals, taxis</td>
+          </tr>
+          <tr>
+            <td><strong>⚡ Kinetic Transit</strong></td>
+            <td>10 FPS</td>
+            <td>4.5 Mbps</td>
+            <td>48.6 GB</td>
+            <td>~9.5%</td>
+            <td>25m baseline velocity vectors (±1.5 km/h), bus lane infractions</td>
+          </tr>
+          <tr>
+            <td><strong>🔬 Diagnostic Burst</strong></td>
+            <td>30 FPS</td>
+            <td>13.8 Mbps</td>
+            <td>N/A</td>
+            <td>~38%</td>
+            <td>Calibration runs, high-speed camera alignment (max 60s)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-size:0.92rem; color:var(--accent-amber); margin:16px 0 6px 0;">2. Adaptive Environmental Confidence Matrix</h3>
+      <table class="profile-table">
+        <thead>
+          <tr>
+            <th>Regime</th>
+            <th>Environmental Condition</th>
+            <th>Vehicle Conf</th>
+            <th>Person Conf</th>
+            <th>Special Filter</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>☀️ Daylight</strong></td>
+            <td>Sun &gt; 0°, Mean V &ge; 40</td>
+            <td>0.45</td>
+            <td>0.40</td>
+            <td>Standard Baseline</td>
+          </tr>
+          <tr>
+            <td><strong>🌧️ Rain / Wet</strong></td>
+            <td>Weather rainy or high road specular delta</td>
+            <td>0.55</td>
+            <td>0.42</td>
+            <td>Puddle Reflection Suppressor ON</td>
+          </tr>
+          <tr>
+            <td><strong>🌙 Nocturnal</strong></td>
+            <td>Sun &le; 0°, Mean V &lt; 40</td>
+            <td>0.52</td>
+            <td>0.35</td>
+            <td>Headlight Bloom Filter + Window ΔV +45</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <h3 style="font-size:0.92rem; color:var(--accent-magenta); margin:0;">3. Empirical Dual-Batch Results</h3>
+        <button class="primary" id="runBatchBtn" onclick="fetchBatchEvaluation()">⚡ Run Batch Evaluation</button>
+      </div>
+
+      <div id="batchResultsArea" style="margin-top:10px; font-size:0.8rem; background:#0d1117; padding:12px; border-radius:6px; border:1px solid var(--border);">
+        Click <strong>Run Batch Evaluation</strong> to evaluate real Day and Night frames against active perspective polygons.
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Save Button for Mobile Thumb Access -->
+  <div class="mobile-floating-save">
+    <button class="primary" style="padding:10px 16px; font-size:0.9rem; box-shadow:0 4px 12px rgba(0,0,0,0.5);" onclick="saveZones()">💾 Save</button>
+  </div>
+
+  <div class="toast" id="toast">✅ Zones saved successfully!</div>
+
+  <script>
+    function toggleBenchmarksModal() {
+      const modal = document.getElementById('benchmarksModal');
+      modal.classList.toggle('open');
+    }
+
+    async function fetchBatchEvaluation() {
+      const btn = document.getElementById('runBatchBtn');
+      const out = document.getElementById('batchResultsArea');
+      btn.disabled = true;
+      btn.textContent = '⏳ Evaluating...';
+      out.innerHTML = '<span style="color:var(--accent-blue);">Running batch evaluation on authentic frames in /data/media/merged/vision/validation...</span>';
+      try {
+        const res = await fetch('/api/batch/evaluate');
+        const data = await res.json();
+        out.innerHTML = `
+          <div style="margin-bottom:8px;">
+            <strong style="color:var(--accent-amber);">☀️ Daylight Batch (${data.day_batch.frame_count} frames):</strong> Mean V = <strong>${data.day_batch.mean_luminance_v}</strong> • Regime: <strong>${data.day_batch.primary_regime}</strong>
+          </div>
+          <div style="margin-bottom:8px;">
+            <strong style="color:var(--accent-blue);">🌙 Night Batch (${data.night_batch.frame_count} frames):</strong> Mean V = <strong>${data.night_batch.mean_luminance_v}</strong> • Regime: <strong>${data.night_batch.primary_regime}</strong>
+          </div>
+          <div style="margin-top:10px; color:var(--accent-green); font-weight:600;">
+            ✅ Recommended 24/7 Profile: ${data.sampling_recommendations.night_recommended.toUpperCase()} (2 FPS, 0.8 Mbps, &lt;2% CPU)
+          </div>
+        `;
+      } catch (e) {
+        out.innerHTML = `<span style="color:var(--accent-red);">Error evaluating batch: ${e}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Re-run Batch Evaluation';
+      }
+    }
+    const canvas = document.getElementById('studioCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+    const coordsOverlay = document.getElementById('coordsOverlay');
+    const toast = document.getElementById('toast');
+
+    let bgImage = new Image();
+    let zonesData = {};
+    let selectedZoneKey = 'condo_723_gate'; // Default select Condo Gate
+    let selectedWindowId = null;
+    let dragPointIndex = -1;
+    let zoomLevel = 1.0;
+    let panMode = false;
+    let activePointerId = null;
+
+    const LAYER_COLORS = {
+      condo_723_gate: '#00f0ff',
+      bar_tables: '#d946ef',
+      bus_lane: '#ef4444',
+      roadway_roi: '#3b82f6',
+      streetlamp_photometric: '#10b981',
+      entrance_vestibule: '#38bdf8',
+      apartment_windows: '#f59e0b'
+    };
+
+    // Load available frames list from REST API
+    async function loadFramesList() {
+      try {
+        const res = await fetch('/api/frames/list');
+        const frames = await res.json();
+        const select = document.getElementById('frameSelect');
+        select.innerHTML = '';
+
+        frames.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.id;
+          opt.textContent = f.label;
+          select.appendChild(opt);
+        });
+
+        // Prioritize clean_v4_upright.jpg
+        const v4 = frames.find(f => f.id === 'clean_v4_upright.jpg');
+        const defaultFrame = v4 || frames[0];
+        if (defaultFrame) {
+          select.value = defaultFrame.id;
+          updateFrameBadge(defaultFrame);
+          loadFrameImage(defaultFrame.id);
+        }
+      } catch (e) {
+        console.error('Failed to load frames list:', e);
+        loadFrameImage('clean_v4_upright.jpg');
+      }
+    }
+
+    function updateFrameBadge(meta) {
+      const badge = document.getElementById('frameBadge');
+      if (meta && meta.is_daylight) {
+        badge.className = 'badge daylight';
+        badge.textContent = `☀️ Daylight (V=${meta.mean_v})`;
+      } else {
+        badge.className = 'badge night';
+        badge.textContent = `🌙 Night (V=${meta ? meta.mean_v : 0})`;
+      }
+    }
+
+    function onFrameChange() {
+      const select = document.getElementById('frameSelect');
+      const frameId = select.value;
+      loadFrameImage(frameId);
+    }
+
+    function loadFrameImage(frameId) {
+      bgImage = new Image();
+      bgImage.crossOrigin = 'anonymous';
+      bgImage.onload = () => {
+        resizeCanvasToDisplay();
+        refreshOccupancy(frameId);
+      };
+      bgImage.src = `/api/frame?name=${encodeURIComponent(frameId)}`;
+    }
+
+    // Responsive Canvas Sizing (fits mobile screen width perfectly)
+    function resizeCanvasToDisplay() {
+      if (!bgImage.complete || bgImage.naturalWidth === 0) return;
+      const containerWidth = wrapper.clientWidth || (window.innerWidth - 24);
+      const displayWidth = Math.max(320, Math.min(containerWidth, 960));
+      const scale = displayWidth / bgImage.width;
+      canvas.width = bgImage.width * scale;
+      canvas.height = bgImage.height * scale;
+      redraw();
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvasToDisplay();
+    });
+
+    // Load zones from API
+    async function loadZones() {
+      try {
+        const res = await fetch('/api/zones');
+        zonesData = await res.json();
+        renderZoneList();
+        updateSelectedDetails();
+        redraw();
+      } catch (e) {
+        console.error('Failed to load zones:', e);
+      }
+    }
+
+    function renderZoneList() {
+      const list = document.getElementById('zoneList');
+      list.innerHTML = '';
+
+      if (zonesData.condo_723_gate) {
+        list.appendChild(createZoneRow('condo_723_gate', 'condo', '🏢 Portaria Condomínio 723', '#00f0ff'));
+      }
+      if (zonesData.bar_tables) {
+        list.appendChild(createZoneRow('bar_tables', 'bar', '🍻 Mesas do Bar na Calçada', '#d946ef'));
+      }
+      if (zonesData.bus_lane) {
+        list.appendChild(createZoneRow('bus_lane', 'bus', '🚌 Faixa BRS Ônibus', '#ef4444'));
+      }
+      if (zonesData.roadway_roi) {
+        list.appendChild(createZoneRow('roadway_roi', 'roadway', '🛣️ Pista Barata Ribeiro', '#3b82f6'));
+      }
+      if (zonesData.streetlamp_photometric) {
+        list.appendChild(createZoneRow('streetlamp_photometric', 'lamp', '💡 Poste Rioluz (Lux)', '#10b981'));
+      }
+
+      if (zonesData.apartment_windows) {
+        zonesData.apartment_windows.forEach(win => {
+          list.appendChild(createWindowRow(win));
+        });
+      }
+    }
+
+    function createZoneRow(key, cssClass, label, color) {
+      const row = document.createElement('div');
+      row.className = `zone-row ${cssClass}`;
+      if (selectedZoneKey === key) row.classList.add('selected');
+      row.innerHTML = `<strong>${label}</strong><span style="color:${color}; font-size:0.75rem;">● Active</span>`;
+      row.onclick = () => selectZone(key, null);
+      return row;
+    }
+
+    function createWindowRow(win) {
+      const row = document.createElement('div');
+      row.className = 'zone-row window';
+      if (selectedZoneKey === 'apartment_windows' && selectedWindowId === win.id) row.classList.add('selected');
+      row.innerHTML = `<span>${win.label || win.id}</span><span style="color:var(--accent-amber); font-size:0.75rem;">● Window</span>`;
+      row.onclick = () => selectZone('apartment_windows', win.id);
+      return row;
+    }
+
+    function selectZone(layerKey, windowId) {
+      selectedZoneKey = layerKey;
+      selectedWindowId = windowId;
+      renderZoneList();
+      updateSelectedDetails();
+      redraw();
+
+      // Update chip selection
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      // Scroll canvas into view smoothly if on mobile
+      if (window.innerWidth < 960) {
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function updateSelectedDetails() {
+      const p = document.getElementById('selectedDetails');
+      const b = document.getElementById('selectedBadge');
+      let poly = null;
+      let title = '';
+      let color = '#58a6ff';
+
+      if (selectedZoneKey === 'apartment_windows' && selectedWindowId) {
+        const win = (zonesData.apartment_windows || []).find(w => w.id === selectedWindowId);
+        if (win) { poly = win.polygon; title = win.label || win.id; color = LAYER_COLORS.apartment_windows; }
+      } else if (selectedZoneKey && zonesData[selectedZoneKey]) {
+        poly = zonesData[selectedZoneKey].polygon;
+        title = zonesData[selectedZoneKey].name || selectedZoneKey;
+        color = LAYER_COLORS[selectedZoneKey] || '#58a6ff';
+      }
+
+      if (poly) {
+        b.textContent = `● Selected`;
+        b.style.color = color;
+        p.innerHTML = `
+          <strong style="color:${color}; font-size:0.9rem;">${title}</strong><br>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Vertices: ${poly.length} points</span>
+          <div style="font-family:monospace; margin-top:6px; font-size:0.75rem; background:#0d1117; padding:6px; border-radius:4px; border:1px solid var(--border);">
+            ${poly.map((pt, i) => `P${i}: [${pt[0].toFixed(3)}, ${pt[1].toFixed(3)}]`).join('<br>')}
+          </div>
+          <p style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">
+            💡 Touch & drag vertex points on the picture to adjust boundary.
+          </p>
+        `;
+      } else {
+        b.textContent = '● None';
+        b.style.color = 'var(--text-muted)';
+        p.innerHTML = 'Touch or click on any area on the picture to select and drag vertex points.';
+      }
+    }
+
+    // High-Contrast Canvas Drawing
+    function redraw() {
+      if (!canvas.width || !canvas.height) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Draw background image
+      if (bgImage.complete && bgImage.naturalWidth > 0) {
+        ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+      }
+
+      // 2. Draw Roadway ROI
+      if (zonesData.roadway_roi && zonesData.roadway_roi.polygon) {
+        drawPolygon(zonesData.roadway_roi.polygon, LAYER_COLORS.roadway_roi, '🛣️ Pista', selectedZoneKey === 'roadway_roi', true);
+      }
+
+      // 3. Draw BRS Bus Lane
+      if (zonesData.bus_lane && zonesData.bus_lane.polygon) {
+        drawPolygon(zonesData.bus_lane.polygon, LAYER_COLORS.bus_lane, '🚌 Faixa BRS Ônibus', selectedZoneKey === 'bus_lane');
+      }
+
+      // 4. Draw Condominium 723 Gate (Vibrant Cyan)
+      if (zonesData.condo_723_gate && zonesData.condo_723_gate.polygon) {
+        drawPolygon(zonesData.condo_723_gate.polygon, LAYER_COLORS.condo_723_gate, '🏢 Portaria 723', selectedZoneKey === 'condo_723_gate');
+      }
+
+      // 5. Draw Sidewalk Bar Tables (Vibrant Magenta)
+      if (zonesData.bar_tables && zonesData.bar_tables.polygon) {
+        drawPolygon(zonesData.bar_tables.polygon, LAYER_COLORS.bar_tables, '🍻 Mesas do Bar', selectedZoneKey === 'bar_tables');
+      }
+
+      // 6. Draw Streetlamp Photometric
+      if (zonesData.streetlamp_photometric && zonesData.streetlamp_photometric.polygon) {
+        drawPolygon(zonesData.streetlamp_photometric.polygon, LAYER_COLORS.streetlamp_photometric, '💡 Poste Rioluz', selectedZoneKey === 'streetlamp_photometric');
+      }
+
+      // 7. Draw Apartment Windows
+      if (zonesData.apartment_windows) {
+        zonesData.apartment_windows.forEach(win => {
+          const isSelected = (selectedZoneKey === 'apartment_windows' && selectedWindowId === win.id);
+          drawPolygon(win.polygon, LAYER_COLORS.apartment_windows, win.label || win.id, isSelected);
+        });
+      }
+    }
+
+    function drawPolygon(normalizedPoly, color, label, isSelected, isDashed = false) {
+      if (!normalizedPoly || normalizedPoly.length < 3) return;
+
+      const pts = normalizedPoly.map(pt => [pt[0] * canvas.width, pt[1] * canvas.height]);
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i][0], pts[i][1]);
+      }
+      ctx.closePath();
+
+      // Translucent Fill
+      ctx.fillStyle = isSelected ? `${color}55` : `${color}28`;
+      ctx.fill();
+
+      // High-Contrast Border
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isSelected ? 3.5 : 2.0;
+      if (isDashed) {
+        ctx.setLineDash([6, 4]);
+      } else {
+        ctx.setLineDash([]);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Large Touch-Friendly Vertex Handles
+      if (isSelected) {
+        pts.forEach((pt) => {
+          // Outer halo
+          ctx.beginPath();
+          ctx.arc(pt[0], pt[1], 10, 0, Math.PI * 2);
+          ctx.fillStyle = `${color}66`;
+          ctx.fill();
+
+          // Inner solid handle
+          ctx.beginPath();
+          ctx.arc(pt[0], pt[1], 6, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        });
+      }
+
+      // Pill Badge Label for Extreme Legibility over Asphalt or Awning
+      if (label && pts.length > 0) {
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+        const textWidth = ctx.measureText(label).width;
+        const lx = pts[0][0];
+        const ly = pts[0][1];
+
+        // Pill background
+        ctx.fillStyle = 'rgba(13, 17, 23, 0.9)';
+        ctx.fillRect(lx, ly - 18, textWidth + 10, 16);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lx, ly - 18, textWidth + 10, 16);
+
+        // Label text
+        ctx.fillStyle = isSelected ? '#ffffff' : color;
+        ctx.fillText(label, lx + 5, ly - 6);
+      }
+    }
+
+    // Touch & Pointer Event Handlers (Works seamlessly on Touchscreens & Mouse)
+    function getNormalizedCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left) / rect.width;
+      const rawY = (e.clientY - rect.top) / rect.height;
+      return {
+        x: Math.max(0.0, Math.min(1.0, rawX)),
+        y: Math.max(0.0, Math.min(1.0, rawY)),
+        pixelDist: (normDist) => normDist * rect.width
+      };
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (panMode) return;
+      const pos = getNormalizedCoords(e);
+      coordsOverlay.textContent = `X: ${pos.x.toFixed(3)} | Y: ${pos.y.toFixed(3)}`;
+
+      // 1. Check if user clicked near an existing vertex of the currently selected zone
+      const poly = getSelectedPolygon();
+      const rect = canvas.getBoundingClientRect();
+      // Mobile-friendly generous touch radius: 30 pixels!
+      const touchRadiusNorm = 30 / rect.width;
+
+      if (poly) {
+        for (let i = 0; i < poly.length; i++) {
+          const dx = poly[i][0] - pos.x;
+          const dy = poly[i][1] - pos.y;
+          if (Math.sqrt(dx * dx + dy * dy) < touchRadiusNorm) {
+            dragPointIndex = i;
+            activePointerId = e.pointerId;
+            canvas.setPointerCapture(e.pointerId);
+            return;
+          }
+        }
+      }
+
+      // 2. Check if user clicked inside ANY other polygon to select it
+      const layersToCheck = ['condo_723_gate', 'bar_tables', 'bus_lane', 'roadway_roi', 'streetlamp_photometric'];
+      for (const layer of layersToCheck) {
+        if (zonesData[layer] && isPointInPolygon(pos.x, pos.y, zonesData[layer].polygon)) {
+          selectZone(layer, null);
+          return;
+        }
+      }
+
+      // Check apartment windows
+      if (zonesData.apartment_windows) {
+        for (const win of zonesData.apartment_windows) {
+          if (isPointInPolygon(pos.x, pos.y, win.polygon)) {
+            selectZone('apartment_windows', win.id);
+            return;
+          }
+        }
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      const pos = getNormalizedCoords(e);
+      coordsOverlay.textContent = `X: ${pos.x.toFixed(3)} | Y: ${pos.y.toFixed(3)}`;
+
+      if (dragPointIndex >= 0) {
+        const poly = getSelectedPolygon();
+        if (poly && poly[dragPointIndex]) {
+          poly[dragPointIndex] = [parseFloat(pos.x.toFixed(3)), parseFloat(pos.y.toFixed(3))];
+          redraw();
+          updateSelectedDetails();
+        }
+      }
+    });
+
+    function endPointerDrag(e) {
+      if (activePointerId !== null) {
+        try { canvas.releasePointerCapture(activePointerId); } catch (err) {}
+        activePointerId = null;
+      }
+      dragPointIndex = -1;
+    }
+
+    canvas.addEventListener('pointerup', endPointerDrag);
+    canvas.addEventListener('pointercancel', endPointerDrag);
+
+    // Ray-casting algorithm for point-in-polygon hit test
+    function isPointInPolygon(x, y, poly) {
+      if (!poly || poly.length < 3) return false;
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i][0], yi = poly[i][1];
+        const xj = poly[j][0], yj = poly[j][1];
+        const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function getSelectedPolygon() {
+      if (selectedZoneKey === 'apartment_windows' && selectedWindowId) {
+        const win = (zonesData.apartment_windows || []).find(w => w.id === selectedWindowId);
+        return win ? win.polygon : null;
+      } else if (selectedZoneKey && zonesData[selectedZoneKey]) {
+        return zonesData[selectedZoneKey].polygon;
+      }
+      return null;
+    }
+
+    function addNewWindow() {
+      const id = `apt_${Date.now().toString().slice(-4)}`;
+      const newWin = {
+        id: id,
+        label: `Apartment ${id}`,
+        polygon: [[0.4, 0.3], [0.5, 0.3], [0.5, 0.38], [0.4, 0.38]]
+      };
+      zonesData.apartment_windows = zonesData.apartment_windows || [];
+      zonesData.apartment_windows.push(newWin);
+      selectZone('apartment_windows', id);
+    }
+
+    // Lighting filters
+    function applyFilters() {
+      const b = document.getElementById('brightnessSlider').value;
+      const c = document.getElementById('contrastSlider').value;
+      document.getElementById('brightVal').textContent = `${b}%`;
+      document.getElementById('contrastVal').textContent = `${c}%`;
+      canvas.style.filter = `brightness(${b}%) contrast(${c}%)`;
+    }
+
+    function resetFilters() {
+      document.getElementById('brightnessSlider').value = 100;
+      document.getElementById('contrastSlider').value = 100;
+      applyFilters();
+    }
+
+    // Zoom & Pan
+    function setZoom(lvl) {
+      zoomLevel = lvl;
+      ['zoom1x', 'zoom15x', 'zoom2x'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('active');
+      });
+      if (lvl === 1.0) document.getElementById('zoom1x').classList.add('active');
+      if (lvl === 1.5) document.getElementById('zoom15x').classList.add('active');
+      if (lvl === 2.0) document.getElementById('zoom2x').classList.add('active');
+
+      canvas.style.transform = `scale(${lvl})`;
+    }
+
+    function togglePanMode() {
+      panMode = !panMode;
+      const btn = document.getElementById('panBtn');
+      btn.classList.toggle('active', panMode);
+      wrapper.classList.toggle('pan-mode', panMode);
+    }
+
+    // Occupancy API
+    async function refreshOccupancy(frameId) {
+      try {
+        const res = await fetch(`/api/occupancy?name=${encodeURIComponent(frameId)}`);
+        const data = await res.json();
+        document.getElementById('occRate').textContent = `${data.occupancy_rate_pct || 0}%`;
+        document.getElementById('occUnits').textContent = `${data.active_residential_count || 0} / ${data.total_residential_count || 4}`;
+        document.getElementById('docFitStatus').textContent = data.commercial_active ? '🟢 Open / Lit' : '🌙 Closed / Dark';
+      } catch (e) {
+        console.error('Failed to fetch occupancy:', e);
+      }
+    }
+
+    // Dwell Time & Re-ID API
+    async function refreshDwellStatus() {
+      try {
+        const res = await fetch('/api/dwell');
+        const data = await res.json();
+        if (data.condo_gate) {
+          const occ = data.condo_gate.active_condo_occupants || 0;
+          document.getElementById('condoOccupants').textContent = `${occ} active`;
+          document.getElementById('condoVisits').textContent = data.condo_gate.completed_visits || 0;
+        }
+        if (data.sidewalk_bar && data.sidewalk_bar.tables && data.sidewalk_bar.tables.MESA_01) {
+          const t = data.sidewalk_bar.tables.MESA_01;
+          document.getElementById('barTableState').textContent = t.state || 'VACANT';
+          document.getElementById('barPatrons').textContent = t.patron_count || 0;
+          document.getElementById('barDwell').textContent = `${t.current_dwell_sec || 0}s`;
+        }
+      } catch (e) {
+        console.error('Failed to fetch dwell status:', e);
+      }
+    }
+
+    // Roadway Velocity & Bus Lane Compliance API
+    async function refreshTrafficStatus() {
+      try {
+        const resVel = await fetch('/api/traffic/velocity');
+        const dataVel = await resVel.json();
+        if (dataVel.active_tracks && dataVel.active_tracks.length > 0) {
+          const t = dataVel.active_tracks[0];
+          document.getElementById('roadwaySpeed').textContent = `${t.speed_kmh} km/h`;
+          document.getElementById('roadwayHeading').textContent = t.heading;
+          if (t.is_speeding) {
+            document.getElementById('roadwaySpeed').style.color = 'var(--accent-red)';
+          } else {
+            document.getElementById('roadwaySpeed').style.color = 'var(--accent-blue)';
+          }
+        } else {
+          document.getElementById('roadwaySpeed').textContent = '-- km/h';
+          document.getElementById('roadwayHeading').textContent = 'Eastbound ->';
+        }
+
+        const resBus = await fetch('/api/traffic/buslane');
+        const dataBus = await resBus.json();
+        const infCount = dataBus.active_infractions_count || 0;
+        document.getElementById('busInfractions').textContent = `${infCount} active`;
+        if (infCount > 0) {
+          document.getElementById('busLaneStatus').textContent = '⚠️ Infraction';
+          document.getElementById('busLaneStatus').style.color = 'var(--accent-red)';
+          document.getElementById('busInfractions').style.color = 'var(--accent-red)';
+        } else {
+          document.getElementById('busLaneStatus').textContent = 'Compliant';
+          document.getElementById('busLaneStatus').style.color = 'var(--accent-green)';
+          document.getElementById('busInfractions').style.color = 'var(--text-muted)';
+        }
+      } catch (e) {
+        console.error('Failed to fetch traffic status:', e);
+      }
+    }
+
+    // Environmental Photometrics & Acoustic Polling
+    async function refreshEnvironmentalStatus() {
+      try {
+        const frame = currentFrameName || 'clean_v4_upright.jpg';
+        const res = await fetch(`/api/environmental?name=${frame}`);
+        const data = await res.json();
+        
+        if (data.telemetry && data.telemetry.solar_elevation !== undefined) {
+          const elev = data.telemetry.solar_elevation;
+          document.getElementById('solarElev').textContent = `${elev > 0 ? '+' : ''}${elev}°`;
+          document.getElementById('haWeather').textContent = `${data.telemetry.weather_condition || 'clear'} (${data.telemetry.temperature_c || 22}°C)`;
+        }
+        
+        if (data.streetlamp) {
+          const stEl = document.getElementById('streetlampState');
+          stEl.textContent = data.streetlamp.state;
+          if (data.streetlamp.is_anomalous) {
+            stEl.textContent = `⚠️ ${data.streetlamp.anomaly_type}`;
+            stEl.style.color = 'var(--accent-red)';
+          } else if (data.streetlamp.state === 'STREETLAMP_ON') {
+            stEl.style.color = 'var(--accent-amber)';
+          } else {
+            stEl.style.color = 'var(--text-muted)';
+          }
+        }
+        
+        if (data.roadway) {
+          const roadEl = document.getElementById('roadSurfaceState');
+          roadEl.textContent = data.roadway.road_condition;
+          document.getElementById('roadSpecularIndex').textContent = data.roadway.specular_index.toFixed(2);
+          if (data.roadway.is_wet) {
+            roadEl.style.color = 'var(--accent-cyan)';
+          } else {
+            roadEl.style.color = 'var(--accent-blue)';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch environmental status:', e);
+      }
+    }
+
+    async function refreshAcousticStatus() {
+      try {
+        const res = await fetch('/api/acoustic');
+        const data = await res.json();
+        
+        if (data.noise_floor) {
+          document.getElementById('acousticLeq').textContent = `${data.noise_floor.leq} dB`;
+          document.getElementById('acousticPercentiles').textContent = `${data.noise_floor.l10} / ${data.noise_floor.l90} dB`;
+        }
+        
+        const activeSigEl = document.getElementById('acousticActiveSignature');
+        if (data.recent_events && data.recent_events.length > 0) {
+          const latest = data.recent_events[0];
+          activeSigEl.textContent = `🚨 ${latest.type} (${latest.db_level} dB)`;
+          activeSigEl.style.color = 'var(--accent-red)';
+        } else {
+          activeSigEl.textContent = 'None (Ambient)';
+          activeSigEl.style.color = 'var(--accent-green)';
+        }
+      } catch (e) {
+        console.error('Failed to fetch acoustic status:', e);
+      }
+    }
+
+    async function simulateSound(eventType) {
+      try {
+        const res = await fetch('/api/acoustic/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_type: eventType })
+        });
+        const data = await res.json();
+        const activeSigEl = document.getElementById('acousticActiveSignature');
+        if (data.detected_events && data.detected_events.length > 0) {
+          const ev = data.detected_events[0];
+          activeSigEl.textContent = `⚡ ${ev.type} (${ev.db_level} dB)`;
+          activeSigEl.style.color = 'var(--accent-amber)';
+        }
+        refreshAcousticStatus();
+      } catch (e) {
+        console.error('Failed to simulate sound:', e);
+      }
+    }
+
+    // Data Quality & Verification Audit Polling
+    async function refreshQualityAudit() {
+      try {
+        const frame = currentFrameName || 'clean_v4_upright.jpg';
+        const res = await fetch(`/api/quality/audit?name=${frame}`);
+        const data = await res.json();
+
+        if (data.quality_score !== undefined) {
+          const scoreEl = document.getElementById('qaScore');
+          const gradeEl = document.getElementById('qaGrade');
+          scoreEl.textContent = `${data.quality_score}%`;
+          gradeEl.textContent = data.grade || 'EXCELLENT';
+
+          if (data.quality_score >= 90) {
+            scoreEl.style.color = 'var(--accent-green)';
+            gradeEl.className = 'badge daylight';
+          } else if (data.quality_score >= 75) {
+            scoreEl.style.color = 'var(--accent-cyan)';
+            gradeEl.className = 'badge daylight';
+          } else if (data.quality_score >= 50) {
+            scoreEl.style.color = 'var(--accent-amber)';
+            gradeEl.className = 'badge rain';
+          } else {
+            scoreEl.style.color = 'var(--accent-red)';
+            gradeEl.className = 'badge night';
+          }
+        }
+
+        if (data.optical_alignment) {
+          const alignEl = document.getElementById('qaAlignment');
+          const drift = data.optical_alignment.max_drift_px || 0.0;
+          if (data.optical_alignment.is_aligned) {
+            alignEl.textContent = `STABLE (${drift.toFixed(1)}px)`;
+            alignEl.style.color = 'var(--accent-cyan)';
+          } else {
+            alignEl.textContent = `⚠️ DRIFT (${drift.toFixed(1)}px)`;
+            alignEl.style.color = 'var(--accent-red)';
+          }
+        }
+
+        if (data.sharpness) {
+          const sharpEl = document.getElementById('qaSharpness');
+          const pct = Math.round((data.sharpness.sharpness_ratio || 1.0) * 100);
+          if (data.sharpness.is_obscured) {
+            sharpEl.textContent = `⚠️ OBSCURED (${pct}%)`;
+            sharpEl.style.color = 'var(--accent-red)';
+          } else {
+            sharpEl.textContent = `${pct}% (Clear)`;
+            sharpEl.style.color = 'var(--accent-blue)';
+          }
+        }
+
+        const anomEl = document.getElementById('qaAnomalies');
+        if (data.active_anomalies && data.active_anomalies.length > 0) {
+          anomEl.textContent = data.active_anomalies.join(', ');
+          anomEl.style.color = 'var(--accent-red)';
+        } else {
+          anomEl.textContent = 'None';
+          anomEl.style.color = 'var(--text-muted)';
+        }
+      } catch (e) {
+        console.error('Failed to fetch quality audit:', e);
+      }
+    }
+
+    // Save zones back to server
+    async function saveZones() {
+      try {
+        const res = await fetch('/api/zones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(zonesData, null, 2)
+        });
+        if (res.ok) {
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3000);
+        } else {
+          alert('Error saving zones. Check console for details.');
+        }
+      } catch (e) {
+        alert('Network error while saving zones: ' + e);
+      }
+    }
+
+    function resetToDefaults() {
+      if (confirm('Reset all polygon crosshairs to server default?')) {
+        loadZones();
+      }
+    }
+
+    // Initialize Studio
+    window.addEventListener('DOMContentLoaded', () => {
+      loadFramesList();
+      loadZones();
+      refreshDwellStatus();
+      refreshTrafficStatus();
+      refreshEnvironmentalStatus();
+      refreshAcousticStatus();
+      refreshQualityAudit();
+      setInterval(refreshDwellStatus, 5000);
+      setInterval(refreshTrafficStatus, 5000);
+      setInterval(refreshEnvironmentalStatus, 6000);
+      setInterval(refreshAcousticStatus, 4000);
+      setInterval(refreshQualityAudit, 6000);
+    });
+  </script>
+</body>
+</html>

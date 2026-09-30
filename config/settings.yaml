@@ -1,0 +1,67 @@
+# Urban Traffic & Building Vision Appliance Configuration
+
+app:
+  name: "urban-traffic-vision"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 9099
+
+camera:
+  edge_ip: "100.115.165.41"
+  mode: "still" # Options: "still" (Option A snapshot/burst) or "rtsp" (Option C continuous video/audio)
+  http_snapshot_url: "http://100.115.165.41:8080/photo.jpg"
+  rtsp_stream_url: "rtsp://100.115.165.41:8554/live"
+  sampling_interval_seconds: 12
+  thermal_guardrail_celsius: 40.0
+
+model:
+  path: "/data/media/merged/vision/yolov8s.pt"
+  imgsz: 640
+  conf: 0.45
+  iou: 0.45
+  classes:
+    - 0  # person
+    - 1  # bicycle
+    - 2  # car
+    - 3  # motorcycle
+    - 5  # bus
+    - 7  # truck
+
+tracking:
+  max_disappeared_frames: 2
+  max_distance_pixels: 250
+  street_baseline_meters: 25.0 # Street baseline distance for velocity calculation
+
+cluster_integrations:
+  home_assistant:
+    url: "http://127.0.0.1:8123"
+    entity_sun: "sun.sun"
+    token_env: "SUPERVISOR_TOKEN"
+  mqtt:
+    host: "127.0.0.1"
+    port: 1883
+    topics:
+      telemetry: "vision/traffic/telemetry"
+      events: "vision/traffic/events"
+      acoustics: "vision/traffic/noise"
+      streetlights: "vision/traffic/streetlights"
+
+acoustics:
+  enabled: true
+  sample_rate: 44100
+  window_seconds: 1.0
+  horn_band: [2000, 3500]
+  siren_band: [600, 1500]
+  baseline_percentile: 10 # P10 rolling noise floor
+
+archival:
+  output_dir: "/data/media/merged/vision/archives"
+  retention_days: 30
+  compression: "zstd"
+  zstd_level: 3
+  zstd_threads: 4
+  timelapse_fps: 30
+  timelapse_sample_rate_seconds: 10
+  gdrive_remote: "gdrive_root:UrbanTrafficVision_Backups"
+  cloud_retention_days: 30
+
