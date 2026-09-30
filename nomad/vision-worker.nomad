@@ -46,7 +46,7 @@ job "vision-worker" {
       driver = "docker"
 
       config {
-        image        = "homelab/urban-traffic-vision:local"
+        image        = "ghcr.io/travt/urban-traffic-vision:master@sha256:4cb74991adb49832464db18714a6f2713432be6a021f241a1ab46219ecc52e32"
         force_pull   = false
         network_mode = "host"
         args         = ["9099"]
