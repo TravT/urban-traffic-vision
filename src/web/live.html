@@ -87,6 +87,8 @@
     .btn.active { background: #2563eb; border-color: #38bdf8; color: #fff; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
     .btn-green { background: #166534; border-color: #22c55e; color: white; }
     .btn-green:hover { background: #15803d; }
+    .btn-amber { background: #854d0e; border-color: #f59e0b; color: white; font-weight: 700; }
+    .btn-amber:hover { background: #a16207; }
     .btn-red { background: #991b1b; border-color: #ef4444; color: white; }
     .btn-red:hover { background: #b91c1c; }
     .btn-purple { background: #581c87; border-color: #a855f7; color: white; }
@@ -340,6 +342,7 @@
           <button id="btnToggleLabels" class="btn active" onclick="toggleLabelsOverlay()">🏷️ Zone Labels</button>
         </div>
         <div class="btn-group">
+          <button id="btnStreamControl" class="btn btn-green" onclick="toggleStreamControl()">▶️ Turn Stream ON</button>
           <button id="btnAnnotated" class="btn active" onclick="setViewMode('annotated')">🟢 AI Annotated Overlay</button>
           <button id="btnRaw" class="btn" onclick="setViewMode('raw')">🔴 Raw Camera Feed</button>
         </div>
@@ -833,6 +836,48 @@
           document.getElementById('mountDrift').textContent = `${drift.toFixed(1)} px (${d.optical_alignment.is_aligned ? 'Aligned' : 'Shifted'})`;
         }
       } catch (e) {}
+
+      // 8. Stream Power State
+      await checkStreamControl();
+    }
+
+    let streamState = 'running';
+
+    async function checkStreamControl() {
+      try {
+        const res = await fetch('/api/control');
+        const data = await res.json();
+        streamState = data.state || 'running';
+        const btn = document.getElementById('btnStreamControl');
+        const badge = document.querySelector('.badge-live');
+        if (btn) {
+          if (streamState === 'running') {
+            btn.className = 'btn btn-amber';
+            btn.innerHTML = '⏸️ Stream Active (Click to Pause)';
+            if (badge) badge.innerHTML = '<div class="pulse"></div> LIVE CAMERA (12MP)';
+          } else {
+            btn.className = 'btn btn-green';
+            btn.innerHTML = '▶️ Turn Stream ON';
+            if (badge) badge.innerHTML = '⏸️ STREAM PAUSED (STANDBY)';
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function toggleStreamControl() {
+      const nextAction = streamState === 'running' ? 'stop' : 'start';
+      try {
+        const btn = document.getElementById('btnStreamControl');
+        if (btn) btn.innerHTML = '⏳ Updating...';
+        await fetch('/api/control', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: nextAction })
+        });
+        await checkStreamControl();
+      } catch (e) {
+        alert('Failed to update stream state: ' + e);
+      }
     }
 
     // Auto-refresh loops

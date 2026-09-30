@@ -259,6 +259,19 @@ class VisionAPIHandler(BaseHTTPRequestHandler):
                 self._send_json(summary)
             except Exception as e:
                 self._send_json({"error": str(e)}, 500)
+        elif path == "/api/control":
+            try:
+                ctrl_path = VAL_DIR / "control.json"
+                cur_ctrl = {"state": "running", "mode": "continuous"}
+                if ctrl_path.exists():
+                    try:
+                        with open(ctrl_path, "r", encoding="utf-8") as f:
+                            cur_ctrl.update(json.load(f))
+                    except Exception:
+                        pass
+                self._send_json(cur_ctrl)
+            except Exception as e:
+                self._send_json({"error": str(e)}, 500)
         else:
             self.send_error(404, "Not Found")
 
@@ -379,14 +392,28 @@ def start_background_ingestion(val_dir: Path, target: str = "100.115.165.41:5555
         raw_path = val_dir / "latest_raw.jpg"
         tmp_local = val_dir / ".incoming_frame.jpg"
         tmp_upright = val_dir / ".upright_tmp.jpg"
+        ctrl_path = val_dir / "control.json"
         snap_script = (
+            "am force-stop com.termux.api >/dev/null 2>&1; sleep 0.4; "
             "am start -n com.termux.api/.activities.TermuxAPILauncherActivity >/dev/null 2>&1; "
-            "sleep 0.8; su -c '/data/data/com.termux/files/usr/bin/termux-camera-photo -c 0 /sdcard/live_stream.jpg'; "
+            "sleep 1.0; su -c '/data/data/com.termux/files/usr/bin/termux-camera-photo -c 0 /sdcard/live_stream.jpg'; "
             "input keyevent KEYCODE_SLEEP >/dev/null 2>&1"
         )
         print("[Urban Vision Appliance] Native ADB background S20 FE ingestion worker active.", flush=True)
         while True:
             try:
+                # 0. Check control state (default: running)
+                cur_state = "running"
+                if ctrl_path.exists():
+                    try:
+                        with open(ctrl_path, "r", encoding="utf-8") as f:
+                            cur_state = json.load(f).get("state", "running")
+                    except Exception:
+                        pass
+                if cur_state == "paused":
+                    time.sleep(2.0)
+                    continue
+
                 # 1. Thermal guardrail check via native ADB
                 t_res = subprocess.run(
                     ["adb", "-s", target, "shell", "cat", "/sys/class/power_supply/battery/temp"],
