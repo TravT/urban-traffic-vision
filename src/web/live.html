@@ -493,6 +493,23 @@
           <strong id="lensClarity">100% Clear • 24.1°C</strong>
         </div>
       </div>
+
+      <!-- Layer 9: Semantic Scene Supervisor (Track B) -->
+      <div class="telemetry-card" style="grid-column: 1 / -1; background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.85)); border-color: rgba(56, 189, 248, 0.3);">
+        <div class="card-header">
+          <span class="card-title">🧠 Semantic Scene Supervisor (Track B)</span>
+          <span id="sceneSupervisorTag" class="status-tag tag-info">CLIP / Heuristic</span>
+        </div>
+        <div class="card-metric-primary" id="sceneNarrative" style="font-size: 1.05rem; font-weight: 600; line-height: 1.4; color: #38bdf8; margin: 4px 0 8px 0;">
+          Analyzing scene context...
+        </div>
+        <div class="card-metrics-row" style="flex-wrap: wrap; gap: 8px;">
+          <span>Lighting Regime: <strong id="sceneLighting" style="color:#f8fafc;">--</strong></span>
+          <span>Roadway State: <strong id="sceneRoadway" style="color:#f8fafc;">--</strong></span>
+          <span>Sidewalk: <strong id="sceneSidewalk" style="color:#f8fafc;">--</strong></span>
+          <span>Cross-Validation: <strong id="sceneCrossVal" style="color:#4ade80;">✅ Verified</strong></span>
+        </div>
+      </div>
     </div>
 
     <!-- Active YOLOv8 Ground-Truth Detections Table -->
@@ -834,6 +851,27 @@
         if (d.optical_alignment) {
           const drift = d.optical_alignment.max_drift_px || 0.0;
           document.getElementById('mountDrift').textContent = `${drift.toFixed(1)} px (${d.optical_alignment.is_aligned ? 'Aligned' : 'Shifted'})`;
+        }
+      } catch (e) {}
+
+      // 9. Semantic Scene Supervisor (Track B)
+      try {
+        const res = await fetch('/api/scene');
+        const d = await res.json();
+        if (d.narrative) {
+          document.getElementById('sceneNarrative').textContent = d.narrative;
+          document.getElementById('sceneLighting').textContent = d.top_summary?.lighting || '--';
+          document.getElementById('sceneRoadway').textContent = d.top_summary?.roadway || '--';
+          document.getElementById('sceneSidewalk').textContent = d.top_summary?.sidewalk || '--';
+          
+          const cvEl = document.getElementById('sceneCrossVal');
+          if (d.cross_validation && d.cross_validation.is_consistent) {
+            cvEl.textContent = '✅ Verified (No Anomalies)';
+            cvEl.style.color = '#4ade80';
+          } else if (d.cross_validation && d.cross_validation.anomaly_flags?.length > 0) {
+            cvEl.textContent = `⚠️ ${d.cross_validation.anomaly_flags[0]}`;
+            cvEl.style.color = '#fbbf24';
+          }
         }
       } catch (e) {}
 

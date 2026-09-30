@@ -36,6 +36,7 @@ from src.analytics.bus_lane_monitor import BusLaneComplianceMonitor
 from src.analytics.photometrics import HomeAssistantWeatherGateway, PhotometricEngine
 from src.analytics.acoustic_analyzer import UrbanAcousticAnalyzer
 from src.analytics.quality_auditor import QualityAuditEngine, OpticalAlignmentWatchdog
+from src.analytics.scene_supervisor import SemanticSceneSupervisor
 from src.tracking.dwell_time_tracker import UnifiedDwellCoordinator
 
 SETTINGS_PATH = PROJECT_ROOT / "config" / "settings.yaml"
@@ -51,6 +52,7 @@ class VisionAPIHandler(BaseHTTPRequestHandler):
     acoustic_analyzer = UrbanAcousticAnalyzer(sample_rate=16000)
     quality_engine = QualityAuditEngine()
     alignment_watchdog = OpticalAlignmentWatchdog()
+    scene_supervisor = SemanticSceneSupervisor(use_embeddings=False)
 
     def _send_json(self, data: dict, status: int = 200):
         body = json.dumps(data, indent=2).encode("utf-8")
@@ -270,6 +272,23 @@ class VisionAPIHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
                 self._send_json(cur_ctrl)
+            except Exception as e:
+                self._send_json({"error": str(e)}, 500)
+        elif path == "/api/scene":
+            try:
+                frame_name = query.get("name", query.get("frame", [None]))[0]
+                if frame_name:
+                    cal_path = get_frame_path_by_id(str(VAL_DIR), frame_name)
+                else:
+                    cal_path = self.replay_adapter.get_calibration_frame_path()
+                img = Image.open(cal_path)
+                report = self.scene_supervisor.evaluate_scene(img)
+
+                # Cross-validate against local HA telemetry
+                ha_state = self.ha_gateway.query_ha_state()
+                cross_val = self.scene_supervisor.cross_validate_with_yolo(report, [], ha_telemetry=ha_state)
+                report["cross_validation"] = cross_val
+                self._send_json(report)
             except Exception as e:
                 self._send_json({"error": str(e)}, 500)
         else:
